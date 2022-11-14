@@ -1,0 +1,45 @@
+[
+  {
+    "query_source": "SQL",
+    "query_source_identifier": "report.ServiceResourceInventory",
+    "columns": [
+      "Resource",
+      "ResourceCategory",
+      "ResourceID",
+      "ResourceName",
+      "ResourceType",
+      "ServiceAccountID",
+      "ServiceResourceID",
+      "isOrphan",
+      "isDeleted"
+    ],
+    "default_query": [
+      "isDeleted=0"
+    ],
+    "service_account_ref": "ServiceAccountID"
+  },
+  {
+    "query_source": "MongoDB",
+    "query_source_identifier": "service_resource_inventory",
+    "database_ref": "resource_inventory",
+    "columns": [
+      "category",
+      "check_resource_element",
+      "component",
+      "operation_id",
+      "service_account_name",
+      "service_name",
+      "service_type",
+      "resource_type",
+      "resource",
+      "tags"
+    ],
+    "default_query": {
+      "is_deleted": false
+    },
+    "service_account_ref": {
+      "key_name": "service_account_id",
+      "key_type": "string"
+    }
+  }
+]
