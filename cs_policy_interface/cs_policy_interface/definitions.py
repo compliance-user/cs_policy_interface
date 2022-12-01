@@ -246,7 +246,18 @@ class AzureUtils(object):
 
 
 class AzureRestApiEndpoint(object):
-    list_storage_accounts = 'https://management.azure.com/subscriptions/{}/providers/Microsoft.Storage/storageAccounts?api-version=2021-04-01'
+    list_storage_accounts = '{}/subscriptions/{}/providers/Microsoft.Storage/storageAccounts?api-version=2021-04-01'
+    list_security_contacts = '{}/subscriptions/{}/providers/Microsoft.Security/securityContacts?api-version=2020-01-01-preview'
+    list_auto_provisioning_settings = '{}/subscriptions/{}/providers/Microsoft.Security/autoProvisioningSettings?api-version=2017-08-01-preview'
+    list_pricings = '{}/subscriptions/{}/providers/Microsoft.Security/pricings?api-version=2022-03-01'
+    sqlserver_tde = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Sql/servers/{}/databases/{}/transparentDataEncryption/current?api-version=2021-11-01'
+    list_server = '{}/subscriptions/{}/providers/Microsoft.Sql/servers?api-version=2021-11-01'
+    list_database_by_server = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Sql/servers/{}/databases?api-version=2021-11-01'
+    list_network_watchers = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Network/networkWatchers?api-version=2022-05-01'
+
+
+class AzureRequestHeader(object):
+    header = {"Content-Type": "application/json"}
 
 
 class HTTPCODES(object):
