@@ -196,14 +196,22 @@ def rem_duplicates_from_op(output):
     return [i for n, i in enumerate(output) if i.get('ResourceId') not in [y.get('ResourceId') for y in output[n + 1:]]]
 
 
-def get_azure_auth_token(credentials):
+def get_azure_auth_token(credentials, is_graph_auth_required=False):
     try:
-        endpoint = AzureUtils.ENDPOINT.get(credentials["cloud_type"])
+        endpoint = AzureUtils.ENDPOINT.get(credentials.get("cloud_type") or 'Azure_Global')
         context = adal.AuthenticationContext(endpoint.get("AUTHENTICATION_ENDPOINT") + credentials['tenant_id'])
-        token_response = context. \
-            acquire_token_with_client_credentials(endpoint.get("RESOURCE"),
-                                                  credentials['application_id'],
-                                                  credentials['application_secret'])
-        return token_response.get('accessToken')
+        if is_graph_auth_required:
+            token_response = context. \
+                acquire_token_with_client_credentials(endpoint.get("GRAPH_RESOURCE"),
+                                                      credentials['application_id'],
+                                                      credentials['application_secret'])
+            endpoint = endpoint.get('GRAPH_API_ENDPOINT')
+        else:
+            token_response = context. \
+                acquire_token_with_client_credentials(endpoint.get("RESOURCE"),
+                                                      credentials['application_id'],
+                                                      credentials['application_secret'])
+            endpoint = endpoint.get('AZURE_ENDPOINT')
+        return token_response.get('accessToken'), endpoint
     except Exception as e:
         raise Exception('Unable to retrieve results from Azure. Error {}'.format(str(e)))
