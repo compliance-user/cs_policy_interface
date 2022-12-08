@@ -175,6 +175,7 @@ class AccessNestedDict:
     print(y.get('a.aa'))  # prints `True`
     print(y.get('b.bb', default_val='Key Not Available'))  # prints `"Key Not Available"`
     """
+
     def __init__(self, data):
         self._source_dict = data
 
@@ -198,12 +199,34 @@ def rem_duplicates_from_op(output):
 
 def get_azure_auth_token(credentials):
     try:
-        endpoint = AzureUtils.ENDPOINT.get(credentials["cloud_type"])
+        endpoint = AzureUtils.ENDPOINT.get(credentials.get("cloud_type") or 'Azure_Global')
         context = adal.AuthenticationContext(endpoint.get("AUTHENTICATION_ENDPOINT") + credentials['tenant_id'])
         token_response = context. \
             acquire_token_with_client_credentials(endpoint.get("RESOURCE"),
                                                   credentials['application_id'],
                                                   credentials['application_secret'])
-        return token_response.get('accessToken')
+        return token_response.get('accessToken'), endpoint.get('AZURE_ENDPOINT')
+    except Exception as e:
+        raise Exception('Unable to retrieve results from Azure. Error {}'.format(str(e)))
+
+
+def get_azure_graph_auth_token(credentials):
+    try:
+        endpoint = AzureUtils.ENDPOINT.get(credentials.get("cloud_type") or 'Azure_Global')
+        context = adal.AuthenticationContext(endpoint.get("AUTHENTICATION_ENDPOINT") + credentials['tenant_id'])
+        graph_token_response = context. \
+            acquire_token_with_client_credentials(endpoint.get("GRAPH_RESOURCE"),
+                                                  credentials['application_id'],
+                                                  credentials['application_secret'])
+        graph_endpoint = endpoint.get('GRAPH_API_ENDPOINT')
+        graph_access_token = graph_token_response.get('accessToken')
+
+        token_response = context. \
+            acquire_token_with_client_credentials(endpoint.get("RESOURCE"),
+                                                  credentials['application_id'],
+                                                  credentials['application_secret'])
+        endpoint = endpoint.get('AZURE_ENDPOINT')
+
+        return token_response.get('accessToken'), endpoint, graph_access_token, graph_endpoint
     except Exception as e:
         raise Exception('Unable to retrieve results from Azure. Error {}'.format(str(e)))

@@ -334,7 +334,9 @@ class ManagedCode(object):
                                     "ResourceType": resource_details.get("resource_type", ""),
                                     "DirectoryId": resource_details.get("summary_details", {}).get("DirectoryId", ""),
                                     "BundleType": bundle_type,
-                                    "Region": resource_details.get("resource_filter", "")
+                                    "Region": resource_details.get("resource_filter", ""),
+                                    "current_sku": resource_details.get("summary_details", {}).get(
+                                        "WorkspaceProperties", {}).get("ComputeTypeName", "NA")
                                     }
                         output.append(response)
             return output, evaluated_resources
@@ -412,7 +414,9 @@ class ManagedCode(object):
                         change_recommended = "Yes" if running_mode == "ALWAYS_ON" else "NO"
                         recommended_mode = "AUTO_STOP"
                     response.update({"ChangeRecommended": change_recommended,
-                                     "RecommendedMode": recommended_mode})
+                                     "RecommendedMode": recommended_mode,
+                                     "current_sku": running_mode,
+                                     "recommended_sku": recommended_mode})
                     output.append(response)
             return output, evaluated_resources
         except Exception as e:
@@ -9125,7 +9129,7 @@ class ManagedCode(object):
                     if check_type == 'Enabled':
                         if elasticsearch_domain_names.get('DomainStatus', {}).get('NodeToNodeEncryptionOptions',
                                                                                   {}).get(
-                                'Enabled'):
+                            'Enabled'):
                             output.append(OrderedDict(ResourceId=domain_name.get('DomainName', {}),
                                                       ResourceName=domain_name.get('DomainName', {}),
                                                       Resource='ElasticSearch'))
@@ -9406,8 +9410,7 @@ class ManagedCode(object):
             credentials = self.execution_args['auth_values']
             tag_input_arg = self.execution_args['args'].get(
                 "tag_naming_regex_pattern",
-                "^security-group-(ue1|uw1|uw2|ew1|ec1|an1|an2|as1|as2|se1)-(d|t|s|p)-([a-z0-9\\-]+)")
-            pattern = re.compile(tag_input_arg)
+                "security-group")
             for region in [region.get('id') for region in self.execution_args['regions']]:
                 try:
                     evaluated_resources += 1
@@ -9419,12 +9422,14 @@ class ManagedCode(object):
                         'Permission Denied or Region is not enabled to access resource. Error {}'.format(str(e)))
                 for security_group in security_groups:
                     for tag in security_group.get('Tags', []):
-                        if tag['Key'] == 'Name':
-                            if not bool(re.search(pattern, tag['Value'])):
+                        if tag.get('Key') == 'Name':
+                            if tag_input_arg not in tag.get('value'):
                                 output.append(
                                     OrderedDict(
                                         ResourceId=security_group['GroupId'],
                                         ResourceName=security_group['GroupId'],
+                                        Resource='Security_group',
+                                        ResourceCategory='Compute',
                                         ResourceType='EC2'))
             return output, evaluated_resources
         except Exception as e:
@@ -15473,6 +15478,60 @@ class ManagedCode(object):
         output, evaluated_resources = self.common_publicly_shared_ami()
         return output, evaluated_resources
 
+    def aws_s3_life_cycle_configuration(self):
+        try:
+            output = list()
+            evaluated_resources = 0
+            operation_args = {}
+            credentials = self.execution_args['auth_values']
+            regions = [region.get('id') for region in self.execution_args['regions']]
+            for region in regions:
+                try:
+                    s3_buckets = run_aws_operation(
+                        credentials,
+                        's3',
+                        'list_buckets',
+                        region_name=region)
+                except Exception as e:
+                    raise Exception(
+                        'Permission Denied or Region is not enabled to access resource. Error {}'.format(str(e)))
+                for s3_bucket in s3_buckets.get('Buckets', []):
+                    try:
+                        operation_args.update(Bucket=s3_bucket['Name'])
+                        evaluated_resources += 1
+                        s3_bucket_lifecycle = run_aws_operation(
+                            credentials,
+                            's3',
+                            'get_bucket_lifecycle_configuration',
+                            region_name=region,
+                            operation_args=operation_args)
+                        if not s3_bucket_lifecycle.get('Rules'):
+                            output.append(
+                                OrderedDict(
+                                    ResourceId=s3_bucket['Name'],
+                                    ResourceName=s3_bucket['Name'],
+                                    Resource='Buckets',
+                                    ResourceType="S3",
+                                    ResourceCategory="Storage"
+                                ))
+                    except ClientError as e:
+                        if e.response.get('Error', {}).get('Code') == 'NoSuchLifecycleConfiguration':
+                            output.append(
+                                OrderedDict(
+                                    ResourceId=s3_bucket['Name'],
+                                    ResourceName=s3_bucket['Name'],
+                                    Resource='Buckets',
+                                    ResourceType="S3",
+                                    ResourceCategory="Storage"
+                                ))
+                        else:
+                            raise Exception(str(e))
+                    except Exception as e:
+                        raise Exception(str(e))
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
     def azure_storage_disk_snapshots_orphaned(self):
         try:
             output = list()
@@ -15488,15 +15547,26 @@ class ManagedCode(object):
                 resource_id = inventory.get("summary_details", {}).get("properties", {}).get("creationData", {}).get(
                     "sourceResourceId", "")
                 if not resource_id:
+                    orphaned_data = {
+                        "Resource": inventory.get("resource"),
+                        "ResourceType": inventory.get("resource_type"),
+                        "ResourceId": inventory.get("check_resource_element"),
+                        "Region": inventory.get("location"),
+                        "ServiceAccountId": inventory.get("service_account_id"),
+                        "ResourceName": inventory.get("summary_details.name"),
+                        "ResourceCategory": inventory.get("category")
+                    }
+                    output.append(orphaned_data)
                     continue
                 resource_existence_query = {
                     "service_account_id": service_account_id,
-                    "check_resource_element": resource_id,
-                    "is_deleted": True
+                    "check_resource_element": {"$regex": resource_id, "$options": "$i"},
+                    "is_deleted": False,
+                    "resource": "Disks",
+                    "resource_type": "Storage_Disks"
                 }
-                resource_existence_check = inventory_db["service_resource_inventory"].find(resource_existence_query)
-                resource_existence_check_count = len(list(resource_existence_check))
-                if not resource_existence_check_count:
+                resource_existence_check = inventory_db["service_resource_inventory"].find(resource_existence_query).count()
+                if  resource_existence_check:
                     continue
                 orphaned_data = {
                     "Resource": inventory.get("resource"),
@@ -15504,7 +15574,7 @@ class ManagedCode(object):
                     "ResourceId": inventory.get("check_resource_element"),
                     "Region": inventory.get("location"),
                     "ServiceAccountId": inventory.get("service_account_id"),
-                    "ResourceName": inventory.get("summary_details.name"),
+                    "ResourceName": inventory.get("summary_details",{}).get("name","NA"),
                     "ResourceCategory": inventory.get("category")
                 }
                 output.append(orphaned_data)
@@ -15514,8 +15584,7 @@ class ManagedCode(object):
                 "resource": "Snapshot",
                 "is_deleted": False
             }
-            total_resource = inventory_db["service_resource_inventory"].find(total_resource_query)
-            evaluated_resources = len(list(total_resource))
+            evaluated_resources = inventory_db["service_resource_inventory"].find(total_resource_query).count()
             return output, evaluated_resources
         except Exception as e:
             raise Exception(str(e))
@@ -15651,13 +15720,13 @@ class ManagedCode(object):
                 }}
             ])
             output = list(orphaned_sql_servers)
-            total_resource_query={
+            total_resource_query = {
                 "service_account_id": service_account_id,
                 "resource_type": "Servers",
                 "resource": "MariaDB",
                 "is_deleted": False
             }
-            total_resource=inventory_db["service_resource_inventory"].find(total_resource_query)
+            total_resource = inventory_db["service_resource_inventory"].find(total_resource_query)
             evaluated_resources = len(list(total_resource))
             return output, evaluated_resources
         except Exception as e:
@@ -16073,7 +16142,7 @@ class ManagedCode(object):
                                 "ResourceId": "$check_resource_element",
                                 "Region": "$location",
                                 "ServiceAccountId": "$service_account_id",
-                                "ResourceName": "$summary_details.name",
+                                "ResourceName": "$check_resource_element",
                                 "ResourceCategory": "$category"
                             }}],
                             "evaluated_resource": [{"$count": "totalRecords"}]}}]))
@@ -16085,7 +16154,32 @@ class ManagedCode(object):
                             evaluated_resources = evaluated_resources[0]["totalRecords"]
                         else:
                             evaluated_resources = 0
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
 
+    def aws_s3_full_control_access(self):
+        try:
+            output = list()
+            evaluated_resources = 0
+            credentials = self.execution_args['auth_values']
+            s3_buckets = run_aws_operation(credentials, 's3', 'list_buckets')
+            operation_args = {}
+            for s3_bucket in s3_buckets.get('Buckets', []):
+                operation_args.update(Bucket=s3_bucket.get('Name', ''))
+                s3_bucket_acl = run_aws_operation(
+                    credentials, 's3', 'get_bucket_acl', operation_args)
+                for s3_bucket_acl_grant in s3_bucket_acl.get('Grants', []):
+                    evaluated_resources += 1
+                    if s3_bucket_acl_grant.get('Permission') == "FULL_CONTROL" and s3_bucket_acl_grant.get(
+                            'Grantee', {}).get('URI') == "http://acs.amazonaws.com/groups/global/AuthenticatedUsers":
+                        output.append(
+                            OrderedDict(
+                                ResourceId=s3_bucket.get('Name'),
+                                ResourceName=s3_bucket.get('Name'),
+                                Resource='Buckets',
+                                ResourceType='S3',
+                                ResourceCategory='Storage'))
             return output, evaluated_resources
         except Exception as e:
             raise Exception(str(e))
@@ -16123,7 +16217,7 @@ class ManagedCode(object):
                         "ResourceId": "$check_resource_element",
                         "Region": "$location",
                         "ServiceAccountId": "$service_account_id",
-                        "ResourceName": "$summary_details.name",
+                        "ResourceName": "$check_resource_element",
                         "ResourceCategory": "$category"
                     }}],
                     "evaluated_resource": [{"$count": "totalRecords"}]}}]))
@@ -16135,6 +16229,55 @@ class ManagedCode(object):
                     evaluated_resources = evaluated_resources[0]["totalRecords"]
                 else:
                     evaluated_resources = 0
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def aws_ec2_instances_without_backup(self, **kwargs):
+        output = list()
+        evaluated_resources = 0
+        operation_args = {}
+        try:
+            credentials = self.execution_args['auth_values']
+            for region in [region.get('id') for region in self.execution_args['regions']]:
+                try:
+                    ec2_instance_response = run_aws_operation(
+                        credentials,
+                        'ec2',
+                        'describe_instances',
+                        region_name=region,
+                        response_key='Reservations')
+                except Exception as e:
+                    raise Exception(
+                        'Permission Denied or Region is not enabled to access resource. Error {}'.format(str(e)))
+                for reservation in ec2_instance_response:
+                    for instance in reservation.get('Instances', []):
+                        evaluated_resources += 1
+                        operation_args.update(
+                            Filters=[
+                                {
+                                    'Name': 'volume-id',
+                                    'Values': [
+                                        vol.get('Ebs', {}).get('VolumeId') for vol in
+                                        instance.get('BlockDeviceMappings', []) if vol.get('Ebs', {}).get('VolumeId')
+                                    ]
+                                },
+                            ]
+                        )
+                        ebs_volumes_response = run_aws_operation(
+                            credentials,
+                            'ec2',
+                            'describe_snapshots',
+                            region_name=region,
+                            operation_args=operation_args)
+                        if not ebs_volumes_response.get('Snapshots'):
+                            output.append(
+                                OrderedDict(
+                                    ResourceId=instance.get('InstanceId'),
+                                    ResourceName=instance.get('InstanceId'),
+                                    Resource='Instances',
+                                    ResourceType='EC2',
+                                    ResourceCategory='Compute'))
             return output, evaluated_resources
         except Exception as e:
             raise Exception(str(e))
@@ -16187,6 +16330,45 @@ class ManagedCode(object):
         except Exception as e:
             raise Exception(str(e))
 
+    def aws_vpc_unused_virtual_private_gateways(self, **kwargs):
+        output = list()
+        evaluated_resources = 0
+        try:
+            credentials = self.execution_args['auth_values']
+            for region in [region.get('id') for region in self.execution_args['regions']]:
+                try:
+                    vpn_response = run_aws_operation(
+                        credentials,
+                        'ec2',
+                        'describe_vpn_gateways',
+                        region_name=region)
+                except Exception as e:
+                    raise Exception(
+                        'Permission Denied or Region is not enabled to access resource. Error {}'.format(str(e)))
+                for vpn in vpn_response.get('VpnGateways', []):
+                    evaluated_resources += 1
+                    if not vpn.get('VpcAttachments'):
+                        output.append(
+                            OrderedDict(
+                                ResourceId=vpn.get('VpnGatewayId'),
+                                ResourceName=vpn.get('VpnGatewayId'),
+                                Resource="VPN_Gateways",
+                                ResourceType="VPN",
+                                ResourceCategory='Network'))
+                    else:
+                        for vpc in vpn.get('VpcAttachments', []):
+                            if vpc.get('State') == 'detached':
+                                output.append(
+                                    OrderedDict(
+                                        ResourceId=vpn.get('VpnGatewayId'),
+                                        ResourceName=vpn.get('VpnGatewayId'),
+                                        Resource="VPN_Gateways",
+                                        ResourceType="VPN",
+                                        ResourceCategory='Network'))
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
     def azure_dns_resolver_endpoints_orphaned(self, *kwargs):
         evaluated_resources = 0
         output = list()
@@ -16231,6 +16413,291 @@ class ManagedCode(object):
                     evaluated_resources = evaluated_resources[0]["totalRecords"]
                 else:
                     evaluated_resources = 0
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def aws_vpc_unused_internet_gateways(self, **kwargs):
+        output = list()
+        evaluated_resources = 0
+        try:
+            credentials = self.execution_args['auth_values']
+            for region in [region.get('id') for region in self.execution_args['regions']]:
+                try:
+                    vpc_response = run_aws_operation(
+                        credentials,
+                        'ec2',
+                        'describe_internet_gateways',
+                        region_name=region,
+                        response_key='InternetGateways')
+                except Exception as e:
+                    raise Exception(
+                        'Permission Denied or Region is not enabled to access resource. Error {}'.format(str(e)))
+                for vpc in vpc_response:
+                    evaluated_resources += 1
+                    if not vpc.get('Attachments'):
+                        output.append(
+                            OrderedDict(
+                                ResourceId=vpc.get('InternetGatewayId'),
+                                ResourceName=vpc.get('InternetGatewayId'),
+                                Resource="Internet_Gateways",
+                                ResourceType="VPC",
+                                ResourceCategory='Network'))
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_ftp_access(self, **kwargs):
+        try:
+            service = [{"tcp": "21"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_smtp_access(self, **kwargs):
+        try:
+            service = [{"tcp": "25"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_redis_access(self, **kwargs):
+        try:
+            service = [{"tcp": "6379"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_postgresql_access(self, **kwargs):
+        try:
+            service = [{"tcp": "5432"}, {"udp": "5432"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_ssh_access(self, **kwargs):
+        try:
+            service = [{"tcp": "22"}, {"sctp": "22"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_dns_access(self, **kwargs):
+        try:
+            service = [{"tcp": "53"}, {"udp": "53"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_rdp_access(self, **kwargs):
+        try:
+            service = [{"tcp": "3389"}, {"udp": "3389"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_http_access(self, **kwargs):
+        try:
+            service = [{"tcp": "80"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_oracledb_access(self, **kwargs):
+        try:
+            service = [{"tcp": "1521"}, {"tcp": "2483"}, {"tcp": "2484"}, {"udp": "2483"}, {"udp": "2484"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_mysql_access(self, **kwargs):
+        try:
+            service = [{"tcp": "3306"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_cassandra_access(self, **kwargs):
+        try:
+            service = [{"tcp": "7000"}, {"tcp": "7001"}, {"tcp": "7199"}, {"tcp": "8888"}, {"tcp": "9042"},
+                       {"tcp": "9160"},
+                       {"tcp": "61620"}, {"tcp": "61621"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_ciscosecure_websm_access(self, **kwargs):
+        try:
+            service = [{"tcp": "9090"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_directory_services_access(self, **kwargs):
+        try:
+            service = [{"tcp": "445"}, {"udp": "445"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_elasticsearch_access(self, **kwargs):
+        try:
+            service = [{"tcp": "9200"}, {"tcp": "9300"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_ldap_access(self, **kwargs):
+        try:
+            service = [{"tcp": "389"}, {"tcp": "636"}, {"udp": "389"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_memcached_access(self, **kwargs):
+        try:
+            service = [{"tcp": "11211"}, {"tcp": "11214"}, {"tcp": "11215"}, {"udp": "11211"}, {"udp": "11214"},
+                       {"udp": "11215"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_mongodb_access(self, **kwargs):
+        try:
+            service = [{"tcp": "27017"}, {"tcp": "27018"}, {"udp": "27019"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_netbios_access(self, **kwargs):
+        try:
+            service = [{"tcp": "137"}, {"tcp": "138"}, {"tcp": "139"}, {"udp": "137"}, {"udp": "138"}, {"udp": "139"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_pop3_access(self, **kwargs):
+        try:
+            service = [{"tcp": "110"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_telnet_access(self, **kwargs):
+        try:
+            service = [{"tcp": "23"}]
+            output, evaluated_resources = self.gcp_audit_unrestricted_access(service=service)
+            return output, evaluated_resources
+        except Exception as e:
+            raise Exception(str(e))
+
+    def gcp_audit_unrestricted_access(self, service=None):
+        output = list()
+        evaluated_resources = 0
+        try:
+            credentials = self.execution_args['auth_values']
+            credential = get_credential(credentials)
+            project_id = credentials.get("project_id")
+            protocol_and_port = service
+            with googleapiclient.discovery.build('compute', 'v1', credentials=credential) as compute:
+                try:
+                    networks = compute.networks().list(project=project_id).execute()
+                    self_link_list = list()
+                    while True:
+                        for network in networks.get('items', []):
+                            self_link_list.append(network.get("selfLink"))
+                        try:
+                            firewall_rules_list = compute.firewalls().list(project=project_id).execute()
+                            for network_self_link in self_link_list:
+                                firewall_rules = [rules for rules in firewall_rules_list.get("items", []) if
+                                                  rules.get("network") == network_self_link]
+                                output_rule_name_list = list()
+                                for rule in firewall_rules:
+                                    for data in protocol_and_port:
+                                        protocol = list(data.keys())[0]
+                                        port = data.get(protocol, "")
+                                        if not rule.get("disabled") and rule.get("direction") == "INGRESS":
+                                            if rule.get("sourceRanges")[0] == "0.0.0.0/0":
+                                                if rule.get("allowed", [])[0].get("IPProtocol") == "all":
+                                                    if rule["name"] not in output_rule_name_list:
+                                                        output_rule_name_list.append(rule["name"])
+                                                        output.append(
+                                                            OrderedDict(ResourceId=rule['id'],
+                                                                        ResourceName=rule['name'],
+                                                                        ResourceType='Firewall'))
+                                                elif ("ports" not in rule.get("allowed", [])[0] and
+                                                      rule.get("allowed", [])[0].get(
+                                                          "IPProtocol", "") == protocol):
+                                                    if rule["name"] not in output_rule_name_list:
+                                                        output_rule_name_list.append(rule["name"])
+                                                        output.append(
+                                                            OrderedDict(ResourceId=rule['id'],
+                                                                        ResourceName=rule['name'],
+                                                                        ResourceType='Firewall'))
+                                                elif (rule.get("allowed", [])[0].get("IPProtocol",
+                                                                                     "") == protocol and
+                                                      (rule.get("allowed", [])[0].get("ports", [])[0] == port or
+                                                       rule.get("allowed", [])[0].get("ports", [])[
+                                                           0] == "0-65535")):
+                                                    if rule["name"] not in output_rule_name_list:
+                                                        output_rule_name_list.append(rule["name"])
+                                                        output.append(
+                                                            OrderedDict(ResourceId=rule['id'],
+                                                                        ResourceName=rule['name'],
+                                                                        ResourceType='Firewall'))
+                                            else:
+                                                if rule.get("allowed", [])[0].get("IPProtocol", "") == "all":
+                                                    if rule["name"] not in output_rule_name_list:
+                                                        output_rule_name_list.append(rule["name"])
+                                                        output.append(
+                                                            OrderedDict(ResourceId=rule['id'],
+                                                                        ResourceName=rule['name'],
+                                                                        ResourceType='Firewall'))
+                                                elif ("ports" not in rule.get("allowed", [])[0] and
+                                                      rule.get("allowed", [])[0].get("IPProtocol", "") == protocol):
+                                                    if rule["name"] not in output_rule_name_list:
+                                                        output_rule_name_list.append(rule["name"])
+                                                        output.append(
+                                                            OrderedDict(ResourceId=rule['id'],
+                                                                        ResourceName=rule['name'],
+                                                                        ResourceType='Firewall'))
+                                                elif (rule.get("allowed", [])[0].get("IPProtocol",
+                                                                                     "") == protocol and
+                                                      rule.get("allowed", [])[0].get("ports")[0] == "0-65535"):
+                                                    if rule["name"] not in output_rule_name_list:
+                                                        output_rule_name_list.append(rule["name"])
+                                                        output.append(
+                                                            OrderedDict(ResourceId=rule['id'],
+                                                                        ResourceName=rule['name'],
+                                                                        ResourceType='Firewall'))
+                        except Exception as e:
+                            raise Exception(str(e))
+                        if networks.get("nextPageToken"):
+                            networks = compute.networks().list(project=project_id,
+                                                               pageToken=networks.get("nextPageToken")).execute()
+                        else:
+                            break
+                except Exception as e:
+                    raise Exception(str(e))
             return output, evaluated_resources
         except Exception as e:
             raise Exception(str(e))

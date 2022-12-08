@@ -211,8 +211,9 @@ class AzureUtils(object):
         "Azure_Global": {
             'AUTHENTICATION_ENDPOINT': 'https://login.microsoftonline.com/',
             'RESOURCE': 'https://management.core.windows.net/',
+            'GRAPH_RESOURCE': 'https://graph.microsoft.com/',
             'AZURE_ENDPOINT': 'https://management.azure.com',
-            'GRAPH_API_ENDPOINT': 'https://graph.windows.net',
+            'GRAPH_API_ENDPOINT': 'https://graph.microsoft.com/',
             'BLOB': 'blob.core.windows.net',
             'CSP_PAYLOAD': 'https://api.partnercenter.microsoft.com',
             'PARTNER_CENTER_API': 'https://login.windows.net/{}/oauth2/token',
@@ -223,6 +224,7 @@ class AzureUtils(object):
         "Azure_China": {
             'AUTHENTICATION_ENDPOINT': 'https://login.partner.microsoftonline.cn/',
             'RESOURCE': 'https://management.core.chinacloudapi.cn/',
+            'GRAPH_RESOURCE': 'https://graph.microsoft.com/',
             'AZURE_ENDPOINT': 'https://management.chinacloudapi.cn',
             'GRAPH_API_ENDPOINT': 'https://graph.chinacloudapi.cn',
             'BLOB': 'blob.core.chinacloudapi.cn',
@@ -233,8 +235,9 @@ class AzureUtils(object):
         "Azure_Government": {
             'AUTHENTICATION_ENDPOINT': 'https://login.microsoftonline.us/',
             'RESOURCE': 'https://management.core.usgovcloudapi.net/',
+            'GRAPH_RESOURCE': 'https://graph.microsoft.com/',
             'AZURE_ENDPOINT': 'https://management.usgovcloudapi.net',
-            'GRAPH_API_ENDPOINT': 'https://graph.windows.net',
+            'GRAPH_API_ENDPOINT': 'https://graph.microsoft.com/',
             'BLOB': 'blob.core.usgovcloudapi.net',
             'CSP_PAYLOAD': 'https://api.partnercenter.microsoft.com',
             'PARTNER_CENTER_API': 'https://login.microsoftonline.us/{}/oauth2/token',
@@ -246,7 +249,68 @@ class AzureUtils(object):
 
 
 class AzureRestApiEndpoint(object):
-    list_storage_accounts = 'https://management.azure.com/subscriptions/{}/providers/Microsoft.Storage/storageAccounts?api-version=2021-04-01'
+    list_storage_accounts = '{}/subscriptions/{}/providers/Microsoft.Storage/storageAccounts?api-version=2021-04-01'
+    list_servers_details = '{}/subscriptions/{}/providers/Microsoft.Sql/servers?api-version=2021-11-01'
+    list_security_contacts = '{}/subscriptions/{}/providers/Microsoft.Security/securityContacts?api-version=2020-01-01-preview'
+    list_auto_provisioning_settings = '{}/subscriptions/{}/providers/Microsoft.Security/autoProvisioningSettings?api-version=2017-08-01-preview'
+    list_pricings = '{}/subscriptions/{}/providers/Microsoft.Security/pricings?api-version=2022-03-01'
+    sqlserver_tde = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Sql/servers/{}/databases/{}/transparentDataEncryption/current?api-version=2021-11-01'
+    list_database_by_server = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Sql/servers/{}/databases?api-version=2021-11-01'
+    list_network_watchers = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Network/networkWatchers?api-version=2022-05-01'
+    list_role_assignments = '{}/subscriptions/{}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01'
+    list_user_auth_method = '{}/v1.0/users/{}/authentication/methods'
+    list_server = '{}/subscriptions/{}/providers/Microsoft.Sql/servers?api-version=2021-11-01'
+    get_user_details = '{}/v1.0/users/{}/?$select=displayName,userType,accountEnabled'
+    list_sql_servers = '{}/subscriptions/{}/providers/Microsoft.Sql/servers/?api-version=2021-11-01'
+    list_sql_server_networksecurity_rules = '{}/{}/virtualNetworkRules?api-version=2021-11-01'
+    list_storage_accounts_privatelinkconnection = '{}/{}/privateEndpointConnections?api-version=2022-09-01'
+    list_log_profiles = '{}/subscriptions/{}/providers/Microsoft.Insights/logprofiles?api-version=2016-03-01'
+    list_vault_recoverable = '{}/subscriptions/{}/providers/Microsoft.KeyVault/vaults?api-version=2022-07-01'
+    server_security_alerts = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Sql/servers/{}/securityAlertPolicies?api-version=2021-11-01'
+    list_resource_group_instances = '{}/subscriptions/{}/providers/Microsoft.Sql/managedInstances?api-version=2021-11-01'
+    instance_security_alerts = '{}/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Sql/managedInstances/{}/securityAlertPolicies?api-version=2021-11-01'
+
+
+class AzurePolicyResourceTypes(object):
+    resource_types = [{"id": "Dns", "values": {"resource_category": "Compute", "resource_type": "Virtual_Machines",
+                                               "resource": "DNS"}},
+                      {"id": "VirtualMachines", "values": {"resource_category": "Compute",
+                                                           "resource_type": "Virtual_Machines",
+                                                           "resource": " Virtual_Machines"}},
+                      {"id": "AppServices", "values": {"resource_category": "Compute",
+                                                       "resource_type": "App_Services",
+                                                       "resource": "App_Services"}},
+                      {"id": "OpenSourceRelationalDatabases", "values": {"resource_category": "Databases",
+                                                                         "resource_type": "Virtual_Machines",
+                                                                         "resource": "Virtual_Machines"}},
+                      {"id": "Arm", "values": {"resource_category": "Compute", "resource_type": "Virtual_Machines",
+                                               "resource": "Virtual_Machines"}},
+                      {"id": "SqlServers", "values": {"resource_category": "Databases",
+                                                      "resource_type": "Servers", "resource": "MSSQL"}},
+                      {"id": "StorageAccounts", "values": {"resource_category": "Accounts",
+                                                           "resource_type": "Storage_Accounts",
+                                                           "resource": "Storage_Accounts"}},
+                      {"id": "SqlServerVirtualMachines", "values": {"resource_category": "Compute",
+                                                                    "resource_type": "Virtual_Machines",
+                                                                    "resource": "MSSQL"}},
+                      {"id": "KubernetesService", "values": {"resource_category": "Compute",
+                                                             "resource_type": "Azure_Kubernetes_Service",
+                                                             "resource": "Cluster"}},
+                      {"id": "ContainerRegistry", "values": {"resource_category": "Compute",
+                                                             "resource_type": "Container_Services",
+                                                             "resource": "Container_Services"}},
+                      {"id": "KeyVaults", "values": {"resource_category": "Security", "resource_type": "Key_Vault",
+                                                     "resource": "Vaults"}}]
+
+
+class AzureRequestHeader(object):
+    header = {"Content-Type": "application/json"}
+
+
+class RoleDefinitionID(object):
+    OWNER = '8e3af657-a8ff-443c-a75c-2fe8c4bcb635'
+    CONTRIBUTOR = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+    READER = 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
 
 
 class HTTPCODES(object):

@@ -1,5 +1,0 @@
-[gerrit]
-host=review.corestack.in
-port=29418
-project=cs_policy_interface.git
-defaultbranch=develop

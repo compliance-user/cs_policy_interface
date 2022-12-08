@@ -2373,9 +2373,9 @@
     "input_parameters": {
       "tag_naming_regex_pattern": {
         "type": "string",
-        "default": "^security-group-(ue1|uw1|uw2|ew1|ec1|an1|an2|as1|as2|se1)-(d|t|s|p)-([a-z0-9\\-]+)",
+        "default": "security-group",
         "optional": true,
-        "description": "Regex pattern to validate against the Security Group Tag"
+        "description": "checking if name contains the string"
       }
     }
   },
@@ -7146,9 +7146,9 @@
     }
   },
   {
-    "name": "AZURE_EVENT_HUB_NAMESPACES_PREMIUM_UNDERUTILIZED",
+    "name": "AZURE_EVENT_HUB_NAMESPACES_PREMIUM_CAPACITY_RECOMMEND",
     "query_source": "SQL",
-    "query_source_identifier": "CostPolicy.sp_AZURE_EVENT_HUB_NAMESPACES_PREMIUM_UNDERUTILIZED",
+    "query_source_identifier": "CostPolicy.sp_AZURE_EVENT_HUB_NAMESPACES_PREMIUM_CAPACITY_RECOMMEND",
     "input_parameters": {
       "ElapsedDays": {
         "type": "string"
@@ -7244,7 +7244,7 @@
   "query_source": "MongoDB",
   "query_source_identifier": "service_resource_inventory",
   "database_ref": "resource_inventory",
-  "query": "[{\n\t\t\"$match\":{\n\t\t\"summary_details.properties.publicIpAddresses\": {\"$exists\": false} ,\n\t\t\t\"summary_details.properties.subnets\":{\"$exists\": false},\n\t\t\t\"is_deleted\": false,\n\t\t\t\"resource_type\": \"Virtual_Networks\",\n\t\t\t\"resource\": \"Nat_Gateways\"\n \t\t\t}\n\t},\n  {\n\t\t\t\"$project\":{\n\t\t\t\"_id\": 0,\n\t\t\t\"ResourceCategory\": \"$category\",\n\t\t\t\"ResourceType\": \"$resource_type\",\n\t\t\t\"ResourceName\": \"$summary_details.name\",\n\t\t\t\"ResourceId\": \"$check_resource_element\",\n\t\t\t\"Resource\": \"$resource\",\n\t\t\t\"Region\": \"$location\",\n\t\t\t\"ServiceAccountId\": \"$service_account_id\"}\n\t}\n]",
+  "query": "[{\"$match\":{\"$or\" : [{\"summary_details.properties.publicIpAddresses\": {\"$exists\": false}}\n,{\"summary_details.properties.subnets\":{\"$exists\": false}}]\n,\"is_deleted\": false\n,\"resource_type\": \"Virtual_Networks\"\n,\"resource\": \"Nat_Gateways\"\n}}\n,  {\"$project\":{\"_id\": 0\n,\"ResourceCategory\": \"$category\"\n,\"ResourceType\": \"$resource_type\"\n,\"ResourceName\": \"$summary_details.name\"\n,\"ResourceId\": \"$check_resource_element\"\n,\"Resource\": \"$resource\"\n,\"Region\": \"$location\"\n,\"ServiceAccountId\": \"$service_account_id\"}}]",
   "input_parameters": {},
   "default_query": {},
   "service_account_ref": {
@@ -7326,6 +7326,38 @@
     }
   },
   {
+    "name": "Azure_Audit_LogProfile_Retention_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_logprofile_retention",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_KeyValut_Recoverable_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_keyvalut_recoverable",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_Email_Alerts_SQL_Server_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_email_alerts_sqlserver",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_Email_Alerts_SQL_Instance_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_email_alerts_sql_instance",
+    "input_parameters": {}
+  },
+  {
     "name": "AZURE_DNS_ZONES_ORPHANED",
     "query_source": "MongoDB",
     "query_source_identifier": "service_resource_inventory",
@@ -7380,7 +7412,7 @@
     "query_source": "MongoDB",
     "query_source_identifier": "service_resource_inventory",
     "database_ref": "resource_inventory",
-    "query": "[{\"$match\": {\n  \"is_deleted\":false,\n  \"resource_type\": \"Desktop_Virtualization\",\n  \"resource\": \"HostPools\",\n  \"summary_details.properties.applicationGroupReferences\":{'$size':0},\n  \"meta_data.SessionHostList\":{'$exists':true}\n}}\n  ,{\"$project\": {\"_id\": 0,\"ResourceCategory\": \"$category\",\n  \"ResourceType\": \"$resource_type\",\"ResourceName\": \"$summary_details.name\",\n  \"ResourceId\": \"$check_resource_element\",\"Resource\": \"$resource\",\n  \"Region\": \"$location\",\"ServiceAccountId\": \"$service_account_id\"}}]",
+    "query": "[{\"$match\": {\n  \"is_deleted\":false,\n  \"resource_type\": \"Desktop_Virtualization\",\n  \"resource\": \"HostPools\",\n  \"summary_details.properties.applicationGroupReferences\":{\"$size\":0},\n  \"meta_data.SessionHostList\":{\"$exists\":true}\n}}\n  ,{\"$project\": {\"_id\": 0,\"ResourceCategory\": \"$category\",\n  \"ResourceType\": \"$resource_type\",\"ResourceName\": \"$summary_details.name\",\n  \"ResourceId\": \"$check_resource_element\",\"Resource\": \"$resource\",\n  \"Region\": \"$location\",\"ServiceAccountId\": \"$service_account_id\",\n  \"Resource\": \"$resource\",\"ResourceCategory\": \"$category\"}}]",
     "input_parameters": {},
     "default_query": {},
     "service_account_ref": {
@@ -7423,7 +7455,7 @@
     "query_source": "MongoDB",
     "query_source_identifier": "service_resource_inventory",
     "database_ref": "resource_inventory",
-    "query": "[{\"$match\": {\n  \"is_deleted\":false,\n  \"resource\": \"Web_Apps\",\n  \"summary_details.kind\":{'$in':['functionapp,linux','functionapp']},\n  \"tags.hidden-link: /app-insights-resource-id\":{'$exists':true}\n}}\n  ,{\"$project\": {\"_id\": 0,\"ResourceCategory\": \"$category\",\n  \"ResourceType\": \"$resource_type\",\"ResourceName\": \"$summary_details.name\",\n  \"ResourceId\": \"$check_resource_element\",\"Resource\": \"$resource\",\n  \"Region\": \"$location\",\"ServiceAccountId\": \"$service_account_id\"}}]",
+    "query": "[{\"$match\": {\n  \"is_deleted\":false,\n  \"resource\": \"Web_Apps\",\n  \"summary_details.kind\":{\"$in\":[\"functionapp,linux\",\"functionapp\"]},\n  \"tags.hidden-link: /app-insights-resource-id\":{\"$exists\":true}\n}}\n  ,{\"$project\": {\"_id\": 0,\"ResourceCategory\": \"$category\",\n  \"ResourceType\": \"$resource_type\",\"ResourceName\": \"$summary_details.name\",\n  \"ResourceId\": \"$check_resource_element\",\"Resource\": \"$resource\",\n  \"Region\": \"$location\",\"ServiceAccountId\": \"$service_account_id\",\n  \"Resource\": \"$resource\",\"ResourceCategory\": \"$category\"}}]",
     "input_parameters": {},
     "default_query": {},
     "service_account_ref": {
@@ -7494,5 +7526,658 @@
     "auth_values_required": true,
     "code_ref": "azure_audit_storage_account_encryption",
     "input_parameters": {}
+  },
+  {
+    "name": "AWS_S3_FULL_CONTROL_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "is_region_required": false,
+    "code_ref": "aws_s3_full_control_access",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_EC2_INSTANCES_WITHOUT_BACKUP",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "code_ref": "aws_ec2_instances_without_backup",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_VPC_UNUSED_VIRTUAL_PRIVATE_GATEWAYS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "code_ref": "aws_vpc_unused_virtual_private_gateways",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_VPC_UNUSED_INTERNET_GATEWAYS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "code_ref": "aws_vpc_unused_internet_gateways",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_S3_LIFE_CYCLE_CONFIGURATION",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "code_ref": "aws_s3_life_cycle_configuration",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_AUDIT_IAM_PASSWORDPOLICY_DOES_NOT_PREVENT_PASSWORDREUSE_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "code_ref": "aws_audit_iam_passwordpolicy_does_not_prevent_passwordreuse",
+    "auth_values_required": true,
+    "is_region_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_AUDIT_IAM_PASSWORDPOLICY_DOES_NOT_HAVE_PASSWORDEXPIRY_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "code_ref": "aws_audit_iam_passwordpolicy_does_not_have_passwordexpiry",
+    "auth_values_required": true,
+    "is_region_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_FTP_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_ftp_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_SMTP_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_smtp_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_REDIS_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_redis_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_POSTGRESQL_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_postgresql_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_SSH_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_ssh_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_DNS_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_dns_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_RDP_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_rdp_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_HTTP_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_http_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_ORACLEDB_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_oracledb_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_CASSANDRA_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_cassandra_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_CASSANDRA_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_cassandra_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_CISCOSECURE_WEBSM_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_ciscosecure_websm_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_DIRECTORY_SERVICES_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_directory_services_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_ELASTICSEARCH_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_elasticsearch_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_LDAP_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_ldap_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_MEMCACHED_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_memcached_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_MONGODB_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_mongodb_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_NETBIOS_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_netbios_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_POP3_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_pop3_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "GCP_AUDIT_FOR_UNRESTRICTED_TELNET_ACCESS",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "gcp_audit_unrestricted_telnet_access",
+    "is_zones_required": false,
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_Security_Contact_AlertNotification_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_security_contact_alertnotification",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_Auto_Provisioning_Setting_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_auto_provisioning_setting",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_Pricing_PricingTier_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_pricing_pricingtier",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_AUDIT_AMAZON_INSPECTOR_FINDINGS_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "code_ref": "aws_inspector_audit_findings",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_AUDIT_DAYS_SINCE_LAST_AMAZON_INSPECTOR_RUN_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "code_ref": "aws_inspector_days_since_last_run",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "input_parameters": {
+      "days": {
+        "type": "number",
+        "default": 30,
+        "optional": true,
+        "description": "Number of days the inspector run should be validated for"
+      }
+    }
+  },
+  {
+    "name": "Azure_Audit_SQLServer_Transparent_Data_Encryption_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_sqlserver_transparent_data_encryption",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_Network_Watcher_ProvisionSate_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_network_watcher_provisioningstate",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_SecurityContact_Email_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_security_contact_email",
+    "input_parameters": {}
+  },
+  {
+    "name": "Azure_Audit_SecurityContact_Phone_CS_Policy",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_security_contact_phone",
+    "input_parameters": {}
+  },
+  {
+    "name": "AWS_AUDIT_AMIS_OLDER_THAN_X_DAYS_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "code_ref": "AWS_Audit_AMIs_Older_than_X_Days",
+    "auth_values_required": true,
+    "is_region_required": true,
+    "input_parameters": {
+      "number_of_days": {
+        "type": "number",
+        "default": 180
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_ENSURE_HTTPS_TRAFFIC_ONLY_STORAGEACCOUNT_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_ensure_https_traffic_only_storageaccount",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_ACCOUNTS_WITH_OWNER_PERM_NOT_MFA_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_accounts_with_owner_perm_not_mfa_subscription",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_DEPRECATED_ACCOUNTS_WITH_OWNER_PERMISSION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_deprecated_accounts_with_owner_permission",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_EXTERNAL_ACCOUNTS_WITH_WRITE_PERMISSIONS_IN_A_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_external_accounts_with_write_permissions_in_a_subscription",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_MAX_NO_OF_OWNERS_FOR_A_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_max_no_of_owners_for_a_subscription",
+    "input_parameters": {
+      "max_account_count": {
+        "type": "number",
+        "optional": true,
+        "description": "Max Account in a subscription",
+        "default": 3
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEPRECATED_ACCOUNTS_ON_A_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_deprecated_accounts_on_a_subscription",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_MINIMUM_NO_OF_OWNERS_IN_A_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_minimum_no_of_owners_in_a_subscription",
+    "input_parameters": {
+      "min_account_count": {
+        "type": "number",
+        "optional": true,
+        "description": "Min Account in a subscription",
+        "default": 3
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_WRITE_PERMISSIONS_WHO_NOT_MFA_ENABLED_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_write_permissions_who_not_mfa_enabled_subscription",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_EXTERNAL_ACCOUNTS_WITH_OWNER_PERMISSIONS_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_external_accounts_with_owner_permissions_subscription",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_ACCOUNTS_READ_PERMISSION_WITHOUT_MFA_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_accounts_read_permission_without_mfa",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_EXTERNAL_ACCOUNTS_WITH_READ_PERMISSIONS_SUBSCRIPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_external_accounts_with_read_permissions_subscription",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_STORAGE_ACCOUNTS_ALLOW_ACCESS_TRUSTED_MS_SVCS_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_storage_accounts_allow_access_trusted_ms_svcs",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_DEPRECATED_ACCOUNT_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_deprecated_account",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_FOR_DNS_SHOULD_BE_ENABLED_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "Dns"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_FOR_KEYVAULT_ENABLED_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "KeyVaults"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_FOR_SERVERS_SHOULD_BE_ENABLED_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "VirtualMachines"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_SET_ON_AZURE_SQL_DATABASE_SERVERS_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "SqlServers"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_SET_ON_CONTAINER_REGISTRIES_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "ContainerRegistry"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_SET_ON_FOR_APP_SERVICE_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "AppServices"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_SET_ON_FOR_KUBERNETES_CLUSTER_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "KubernetesService"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_SET_ON_FOR_STORAGE_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "StorageAccounts"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_SET_ON_SQL_SERVER_MACHINES_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "SqlServerVirtualMachines"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_SQL_SERVER_SHOULD_USE_A_VIRTUAL_NETWORK_SERVICE_ENDPOINT_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_sql_server_should_use_a_virtual_network_service_endpoint",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_STORAGE_ACCOUNTS_SHOULD_HAVE_INFRASTRUCTURE_ENCRYPTION_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_storage_accounts_should_have_infrastructure_encryption",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_STORAGE_ACCOUNTS_RESTRICT_ACCESS_VIRTUAL_NETWORK_RULES_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_storage_accounts_restrict_access_virtual_network_rules",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_STORAGE_ACCOUNTS_SHOULD_USE_PRIVATE_LINK_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_storage_accounts_should_use_private_link",
+    "input_parameters": {}
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_FOR_OPENSOURCE_RELATIONAL_DATABASE_SHOULD_BE_ENABLED_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "OpenSourceRelationalDatabases"
+      }
+    }
+  },
+  {
+    "name": "AZURE_AUDIT_DEFENDER_FOR_RESOURCEMANAGER_SHOULD_BE_ENABLED_CS_POLICY",
+    "query_source": "MongoDB",
+    "database_ref": "heatstack",
+    "auth_values_required": true,
+    "code_ref": "azure_audit_defender_set_on_azure_services",
+    "input_parameters": {
+      "service_name": {
+        "type": "string",
+        "optional": false,
+        "description": "Azure Service in Defender Cloud",
+        "default": "Arm"
+      }
+    }
   }
 ]
